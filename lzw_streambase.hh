@@ -1,7 +1,7 @@
 // -*- mode: c++; -*-
 
-#ifndef _LZW_STREAMBASE_DOT_H
-#define _LZW_STREAMBASE_DOT_H
+#ifndef LZW_STREAMBASE_HH
+#define LZW_STREAMBASE_HH
 
 //
 // All four of the templatized stream classes shown here follow the
@@ -104,4 +104,4 @@ public:
 
 }; //namespace lzw
 
-#endif //#ifndef _LZW_STREAMBASE_DOT_H
+#endif // LZW_STREAMBASE_HH

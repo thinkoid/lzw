@@ -18,7 +18,7 @@ namespace lzw {
 // skips over whitespace, so we don't get an exact copy of
 // the input stream. Using get() works around this problem.
 //
-template<> class input_symbol_stream< std::istream >
+template< > class input_symbol_stream< std::istream >
 {
 public:
     input_symbol_stream(std::istream &input)
@@ -41,7 +41,7 @@ private:
 // even when the strings contain binary data, so this implementation is
 // as simple as we could hope for.
 //
-template<> class output_symbol_stream< std::ostream >
+template< > class output_symbol_stream< std::ostream >
 {
 public:
     output_symbol_stream(std::ostream &output)
@@ -68,7 +68,7 @@ private:
 // The steady increase in the code size continues until m_current_code reaches m_max_code_size,
 // and from then on the code size is fixed.
 //
-template<> class output_code_stream< std::ostream >
+template< > class output_code_stream< std::ostream >
 {
 public:
     output_code_stream(std::ostream &output, unsigned int max_code)
@@ -80,28 +80,34 @@ public:
         , m_next_bump(512)
         , m_max_code(max_code)
     {
+        m_output.put(0x1F);
+        m_output.put(0x9D);
+        m_output.put(0x10 | 0x80);
     }
+
     ~output_code_stream()
     {
         *this << EOF_CODE;
         flush(0);
     }
-    void operator<<(const unsigned int &i)
+
+    void operator<<(int i)
     {
-        m_pending_output |= i << m_pending_bits;
+        m_pending_output |= unsigned(i) << m_pending_bits;
         m_pending_bits += m_code_size;
+
         flush(8);
+
         if (m_current_code < m_max_code) {
-            m_current_code++;
-            if (m_current_code == m_next_bump) {
+            if (++m_current_code == m_next_bump) {
                 m_next_bump *= 2;
-                m_code_size++;
+                ++m_code_size;
             }
         }
     }
 
 private:
-    void flush(const int val)
+    void flush(int val)
     {
         while (m_pending_bits >= val) {
             m_output.put(m_pending_output & 0xff);
@@ -109,6 +115,7 @@ private:
             m_pending_bits -= 8;
         }
     }
+
     int           m_code_size;
     std::ostream &m_output;
     int           m_pending_bits;
@@ -123,7 +130,7 @@ private:
 // the code from lzw-c.h. The difference is in the new members, and these behave just like they do in the
 // output_code_stream class.
 //
-template<> class input_code_stream< std::istream >
+template< > class input_code_stream< std::istream >
 {
 public:
     input_code_stream(std::istream &input, unsigned int max_code)

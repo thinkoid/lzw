@@ -1,59 +1,72 @@
 // -*- mode: c++; -*-
 
-#ifndef _LZW_DOT_H
-#define _LZW_DOT_H
+#ifndef LZW_HH
+#define LZW_HH
 
 #include <string>
 #include <unordered_map>
 
 namespace lzw {
-template< class INPUT, class OUTPUT >
-void compress(INPUT &input, OUTPUT &output, const unsigned int max_code = 32767)
-{
-    input_symbol_stream< INPUT > in(input);
-    output_code_stream< OUTPUT > out(output, max_code);
 
-    std::unordered_map< std::string, unsigned int > codes((max_code * 11) / 10);
-    for (unsigned int i = 0; i < 256; i++)
-        codes[std::string(1, i)] = i;
-    unsigned int next_code = 257;
+template< typename InputStream, typename OutputStream >
+void compress(InputStream &input, OutputStream &output, size_t max_code = 32767)
+{
+    input_symbol_stream< InputStream > in(input);
+    output_code_stream< OutputStream > out(output, max_code);
+
+    std::unordered_map< std::string, unsigned > table((max_code * 11) / 10);
+
+    for (size_t i = 0; i < 256; ++i)
+        table[std::string(1, i)] = i;
+
+    unsigned next_code = 257;
     std::string  current_string;
-    char         c;
-    while (in >> c) {
+
+    for (char c; in >> c; ) {
         current_string = current_string + c;
-        if (codes.find(current_string) == codes.end()) {
+
+        if (table.find(current_string) == table.end()) {
             if (next_code <= max_code)
-                codes[current_string] = next_code++;
-            current_string.erase(current_string.size() - 1);
-            out << codes[current_string];
+                table[current_string] = next_code++;
+
+            current_string.pop_back();
+            out << table[current_string];
+
             current_string = c;
         }
     }
-    if (current_string.size())
-        out << codes[current_string];
+
+    if (!current_string.empty())
+        out << table[current_string];
 }
 
-template< class INPUT, class OUTPUT >
-void decompress(INPUT &input, OUTPUT &output, const unsigned int max_code = 32767)
+template< typename InputStream, typename OutputStream >
+void decompress(InputStream &input, OutputStream &output, size_t max_code = 32767)
 {
-    input_code_stream< INPUT >     in(input, max_code);
-    output_symbol_stream< OUTPUT > out(output);
+    input_code_stream< InputStream > in(input, max_code);
+    output_symbol_stream< OutputStream > out(output);
 
-    std::unordered_map< unsigned int, std::string > strings((max_code * 11) / 10);
-    for (int unsigned i = 0; i < 256; i++)
-        strings[i] = std::string(1, i);
-    std::string  previous_string;
-    unsigned int code;
-    unsigned int next_code = 257;
+    std::unordered_map< unsigned, std::string > table((max_code * 11) / 10);
+
+    for (size_t i = 0; i < 256; ++i)
+        table[i] = std::string(1, i);
+
+    std::string previous_string;
+    unsigned code, next_code = 257;
+
     while (in >> code) {
-        if (strings.find(code) == strings.end())
-            strings[code] = previous_string + previous_string[0];
-        out << strings[code];
+        if (table.find(code) == table.end())
+            table[code] = previous_string + previous_string[0];
+
+        out << table[code];
+
         if (previous_string.size() && next_code <= max_code)
-            strings[next_code++] = previous_string + strings[code][0];
-        previous_string = strings[code];
+            table[next_code++] = previous_string + table[code][0];
+
+        previous_string = table[code];
     }
 }
 
 }; //namespace lzw
-#endif //#ifndef _LZW_DOT_H
+
+#endif // LZW_HH
