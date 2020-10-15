@@ -1,7 +1,7 @@
 #ifndef LZW_C_DOT_H
 #define LZW_C_DOT_H
 
-#include "lzw_streambase.h"
+#include <lzw_streambase.hh>
 #include <iostream>
 
 //
@@ -11,7 +11,7 @@
 // codes based on that width, which will normally be something in the range of 9-18.
 //
 // Since these values are no aligned with byte boundaries, there are some issues writing
-// them to streams that expect to read and write bytes. 
+// them to streams that expect to read and write bytes.
 //
 // Note that the code to read and write symbols is unchanged from lzw-a.h and lzw-b.h
 
@@ -19,13 +19,13 @@ namespace lzw {
 //
 // It's tempting to try to read characters using the ifstream
 // extraction operator, as in m_impl >> c, but that operator
-// skips over whitespace, so we don't get an exact copy of 
+// skips over whitespace, so we don't get an exact copy of
 // the input stream. Using get() works around this problem.
 //
 template<>
 class input_symbol_stream<std::istream> {
 public :
-    input_symbol_stream( std::istream &input ) 
+    input_symbol_stream( std::istream &input )
         : m_input( input ) {}
     bool operator>>( char &c )
     {
@@ -45,7 +45,7 @@ private :
 template<>
 class output_symbol_stream<std::ostream> {
 public :
-    output_symbol_stream( std::ostream &output ) 
+    output_symbol_stream( std::ostream &output )
         : m_output( output ) {}
     void operator<<( const std::string &s )
     {
@@ -55,7 +55,7 @@ private :
     std::ostream &m_output;
 };
 //
-// The constructor has to initialize the number of bits in the code. 
+// The constructor has to initialize the number of bits in the code.
 // This value is calculated from the max_code parameter, and is
 // stored in member m_code_size, where it is used frequently.
 //
@@ -80,7 +80,7 @@ template<>
 class output_code_stream<std::ostream>
 {
 public :
-    output_code_stream( std::ostream &out, unsigned int max_code ) 
+    output_code_stream( std::ostream &out, unsigned int max_code )
         : m_output( out ),
           m_pending_bits(0),
           m_pending_output(0),
@@ -117,7 +117,7 @@ private :
 //
 // Like the output class, the input class has to calculate the code
 // size for this decompression based on the max_code value passed
-// in the function call. 
+// in the function call.
 //
 // When an attempt is made to read a code, there must be a
 // minimum of m_code_size bits in member m_pending_input.
@@ -128,12 +128,12 @@ private :
 // in and appropriately masked, the m_pending_input
 // count is reduced, and the m_available_bits member is
 // reduced accordingly.
-// 
+//
 template<>
 class input_code_stream<std::istream>
 {
 public :
-    input_code_stream( std::istream &in, unsigned int max_code ) 
+    input_code_stream( std::istream &in, unsigned int max_code )
         : m_input( in ),
           m_available_bits(0),
           m_pending_input(0),

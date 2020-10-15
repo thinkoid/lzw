@@ -1,7 +1,7 @@
 #ifndef LZW_B_DOT_H
 #define LZW_B_DOT_H
 
-#include "lzw_streambase.h"
+#include <lzw_streambase.h>
 #include <iostream>
 
 //
@@ -15,13 +15,13 @@ namespace lzw {
 //
 // It's tempting to try to read characters using the ifstream
 // extraction operator, as in m_impl >> c, but that operator
-// skips over whitespace, so we don't get an exact copy of 
+// skips over whitespace, so we don't get an exact copy of
 // the input stream. Using get() works around this problem.
 //
 template<>
 class input_symbol_stream<std::istream> {
 public :
-    input_symbol_stream( std::istream &input ) 
+    input_symbol_stream( std::istream &input )
         : m_input( input ) {}
     bool operator>>( char &c )
     {
@@ -41,7 +41,7 @@ private :
 template<>
 class output_symbol_stream<std::ostream> {
 public :
-    output_symbol_stream( std::ostream &output ) 
+    output_symbol_stream( std::ostream &output )
         : m_output( output ) {}
     void operator<<( const std::string &s )
     {
@@ -61,7 +61,7 @@ private :
 template<>
 class output_code_stream<std::ostream> {
 public :
-    output_code_stream( std::ostream &output, const int ) 
+    output_code_stream( std::ostream &output, const int )
         : m_output( output ) {}
     void operator<<( unsigned int i )
     {
@@ -87,7 +87,7 @@ private :
 template<>
 class input_code_stream<std::istream> {
 public :
-    input_code_stream( std::istream &input, unsigned int ) 
+    input_code_stream( std::istream &input, unsigned int )
         : m_input( input ) {}
     bool operator>>( unsigned int &i )
     {

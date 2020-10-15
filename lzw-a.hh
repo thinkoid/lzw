@@ -1,7 +1,7 @@
 #ifndef LZW_A_DOT_H
 #define LZW_A_DOT_H
 
-#include "lzw_streambase.h"
+#include <lzw_streambase.h>
 #include <iostream>
 
 //
@@ -17,13 +17,13 @@ namespace lzw {
 //
 // It's tempting to try to read characters using the ifstream
 // extraction operator, as in m_impl >> c, but that operator
-// skips over whitespace, so we don't get an exact copy of 
+// skips over whitespace, so we don't get an exact copy of
 // the input stream. Using get() works around this problem.
 //
 template<>
 class input_symbol_stream<std::istream> {
 public :
-    input_symbol_stream( std::istream &input ) 
+    input_symbol_stream( std::istream &input )
         : m_input( input ) {}
     bool operator>>( char &c )
     {
@@ -43,7 +43,7 @@ private :
 template<>
 class output_symbol_stream<std::ostream> {
 public :
-    output_symbol_stream( std::ostream &output ) 
+    output_symbol_stream( std::ostream &output )
         : m_output( output ) {}
     void operator<<( const std::string &s )
     {
@@ -64,17 +64,17 @@ private :
 // so it can properly parse on input, as well as be easilyr loaded
 // into a text editor.
 //
-// One important thing to notice in this class: the presence of 
+// One important thing to notice in this class: the presence of
 // a destructor that prints the EOF_CODE. Since this object goes
 // out of scope as the compressor exists, this insures that every
-// code stream will end with this special code. Putting the onus on 
+// code stream will end with this special code. Putting the onus on
 // the I/O routines to deal with EOF issues simplifies the
 // algorithm itself.
 //
 template<>
 class output_code_stream<std::ostream> {
 public :
-    output_code_stream( std::ostream &output, const int ) 
+    output_code_stream( std::ostream &output, const int )
         : m_output( output ) {}
     void operator<<( unsigned int i )
     {
@@ -92,14 +92,14 @@ private :
 // The corresponding version of the input operator
 // just reads in the white-space separated codes.
 // If there is an error or an EOF_CODE encountered
-// in the stream, the extraction operator returns 
+// in the stream, the extraction operator returns
 // false, which allows the decompressor to know
 // when it is time to stop processing.
 //
 template<>
 class input_code_stream<std::istream> {
 public :
-    input_code_stream( std::istream &input, unsigned int ) 
+    input_code_stream( std::istream &input, unsigned int )
         : m_input( input ) {}
     bool operator>>( unsigned int &i )
     {

@@ -11,9 +11,9 @@
 #include <fstream>
 #include <cstring>
 
-#include "lzw_streambase.h"
-#include "lzw-d.h"
-#include "lzw.h"
+#include <lzw_streambase.hh>
+#include <lzw-d.hh>
+#include <lzw.hh>
 
 
 void usage()
