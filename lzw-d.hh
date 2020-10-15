@@ -87,7 +87,6 @@ public:
 
     ~output_code_stream()
     {
-        *this << EOF_CODE;
         flush(0);
     }
 
