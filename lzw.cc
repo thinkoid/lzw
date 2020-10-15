@@ -2,70 +2,109 @@
 
 #define _ITERATOR_DEBUG_LEVEL 0
 
+#include <unistd.h>
+
+#include <cstring>
+
 #include <iostream>
 #include <fstream>
-#include <cstring>
+#include <memory>
+
+#include <filesystem>
+namespace fs = std::filesystem;
+
+#include <ext/stdio_filebuf.h>
+
+#include <fmt/format.h>
+using fmt::print;
 
 #include <lzw_streambase.hh>
 #include <lzw-d.hh>
 #include <lzw.hh>
 
-void usage()
+static void
+press(std::istream &in, std::ostream &out, size_t max_code,
+      bool uncompress_mode = false)
 {
-    std::cerr
-        << "Usage:\n"
-           "lzw [-max max_code] -c input output #compress file input to file output\n"
-           "lzw [-max max_code] -c - output     #compress stdin to file otuput\n"
-           "lzw [-max max_code] -c input        #compress file input to stdout\n"
-           "lzw [-max max_code] -c              #compress stdin to stdout\n"
-           "lzw [-max max_code] -d input output #decompress file input to file output\n"
-           "lzw [-max max_code] -d - output     #decompress stdin to file otuput\n"
-           "lzw [-max max_code] -d input        #decompress file input to stdout\n"
-           "lzw [-max max_code] -d              #decompress stdin to stdout\n";
-    exit(1);
+    if (uncompress_mode)
+        lzw::decompress(in, out, max_code);
+    else
+        lzw::compress(in, out, max_code);
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
-    int max_code = 32767;
-    if (argc >= 2 && !strcmp("-max", argv[1])) {
-        if (sscanf(argv[2], "%d", &max_code) != 1)
-            usage();
-        argc -= 2;
-        argv += 2;
-    }
-    if (argc < 2)
-        usage();
-    bool compress;
-    if (std::string("-c") == argv[1])
-        compress = true;
-    else if (std::string("-d") == argv[1])
-        compress = false;
-    else
-        usage();
-    std::istream *in = &std::cin;
-    std::ostream *out = &std::cout;
-    bool          delete_instream = false;
-    bool          delete_ostream = false;
-    if (argc == 3) {
-        in = new std::ifstream(argv[2]);
-        delete_instream = true;
-    }
-    if (argc == 4) {
-        out = new std::ofstream(argv[3]);
-        delete_ostream = true;
-        if (std::string("-") != argv[2]) {
-            in = new std::ifstream(argv[2]);
-            delete_instream = true;
+    long maxcode = 32767;
+    bool uncompress_mode = false;
+
+    for (int opt; -1 != (opt = getopt(argc, argv, "m:d")); ) {
+        switch (opt) {
+        case 'm':
+            maxcode = atol(optarg);
+            break;
+
+        case 'd':
+            uncompress_mode = true;
+            break;
+
+        default:
+            print(stderr, "invalid option {}\n", char(opt));
+            print(stderr, "Usage: prog [-m maxcode] [-d] [input [output]]\n");
+            exit(2);
         }
     }
-    if (compress)
-        lzw::compress(*in, *out, max_code);
-    else
-        lzw::decompress(*in, *out, max_code);
-    if (delete_instream)
-        delete in;
-    if (delete_ostream)
-        delete out;
+
+    switch (argc - optind) {
+    case 2: {
+        using namespace std;
+
+        ifstream in(argv[optind], ios::in  | ios::binary);
+        in.unsetf(ios::skipws);
+
+        ofstream out(argv[optind + 1], ios::out | ios::binary);
+
+        press(in, out, maxcode, uncompress_mode);
+    }
+        break;
+
+    case 1: {
+        using namespace std;
+
+        ifstream in(argv[optind], ios_base::in  | ios_base::binary);
+        in.unsetf(ios::skipws);
+
+        __gnu_cxx::stdio_filebuf< char > outbuf(1, ios::out | ios::binary);
+
+        ostream out(&outbuf);
+        out.unsetf(ios::skipws);
+
+        press(in, out, maxcode, uncompress_mode);
+    }
+        break;
+
+    case 0: {
+        using namespace std;
+
+        __gnu_cxx::stdio_filebuf< char > inbuf(0, ios::in | ios::binary);
+
+        istream in(&inbuf);
+        in.unsetf(ios::skipws);
+
+        __gnu_cxx::stdio_filebuf< char > outbuf(1, ios::out | ios::binary);
+
+        ostream out(&outbuf);
+        out.unsetf(ios::skipws);
+
+        press(in, out, maxcode, uncompress_mode);
+
+        inbuf.close();
+        outbuf.close();
+    }
+        break;
+
+    default:
+        break;
+    }
+
     return 0;
 }

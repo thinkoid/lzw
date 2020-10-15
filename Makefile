@@ -12,7 +12,7 @@ CXXFLAGS = -g -O -std=c++2a -W -Wall $(WARNINGS)
 CPPFLAGS = -I.
 
 LDFLAGS =
-LIBS =
+LIBS = -lfmt
 
 INSTALLDIR = ~/bin
 
@@ -35,10 +35,10 @@ $(DEPENDDIR)/%.d: %.cc $(DEPENDDIR)
 $(DEPENDDIR):
 	@[ ! -d $(DEPENDDIR) ] && mkdir -p $(DEPENDDIR)
 
-%: %.c
+%: %.cc
 
 %.o: %.cc
-	$(CXX) -c $(CPPFLAGS) $(CFLAGS) $<
+	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $<
 
 lzw: $(OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)

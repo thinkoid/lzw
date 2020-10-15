@@ -72,10 +72,10 @@ template<> class output_code_stream< std::ostream >
 {
 public:
     output_code_stream(std::ostream &output, unsigned int max_code)
-        : m_output(output)
+        : m_code_size(9)
+        , m_output(output)
         , m_pending_bits(0)
         , m_pending_output(0)
-        , m_code_size(9)
         , m_current_code(256)
         , m_next_bump(512)
         , m_max_code(max_code)
@@ -127,15 +127,16 @@ template<> class input_code_stream< std::istream >
 {
 public:
     input_code_stream(std::istream &input, unsigned int max_code)
-        : m_input(input)
+        : m_code_size(9)
+        , m_input(input)
         , m_available_bits(0)
         , m_pending_input(0)
-        , m_code_size(9)
         , m_current_code(256)
         , m_next_bump(512)
         , m_max_code(max_code)
     {
     }
+
     bool operator>>(unsigned int &i)
     {
         while (m_available_bits < m_code_size) {
@@ -145,7 +146,7 @@ public:
             m_pending_input |= (c & 0xff) << m_available_bits;
             m_available_bits += 8;
         }
-        i = m_pending_input & ~(~0 << m_code_size);
+        i = m_pending_input & ~(~0U << m_code_size);
         m_pending_input >>= m_code_size;
         m_available_bits -= m_code_size;
         if (m_current_code < m_max_code) {
