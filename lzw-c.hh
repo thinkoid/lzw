@@ -1,3 +1,5 @@
+// -*- mode: c++; -*-
+
 #ifndef LZW_C_DOT_H
 #define LZW_C_DOT_H
 
@@ -22,19 +24,22 @@ namespace lzw {
 // skips over whitespace, so we don't get an exact copy of
 // the input stream. Using get() works around this problem.
 //
-template<>
-class input_symbol_stream<std::istream> {
-public :
-    input_symbol_stream( std::istream &input )
-        : m_input( input ) {}
-    bool operator>>( char &c )
+template<> class input_symbol_stream< std::istream >
+{
+public:
+    input_symbol_stream(std::istream &input)
+        : m_input(input)
     {
-        if ( !m_input.get( c ) )
+    }
+    bool operator>>(char &c)
+    {
+        if (!m_input.get(c))
             return false;
         else
             return true;
     }
-private :
+
+private:
     std::istream &m_input;
 };
 //
@@ -42,16 +47,16 @@ private :
 // even when the strings contain binary data, so this implementation is
 // as simple as we could hope for.
 //
-template<>
-class output_symbol_stream<std::ostream> {
-public :
-    output_symbol_stream( std::ostream &output )
-        : m_output( output ) {}
-    void operator<<( const std::string &s )
+template<> class output_symbol_stream< std::ostream >
+{
+public:
+    output_symbol_stream(std::ostream &output)
+        : m_output(output)
     {
-        m_output << s;
     }
-private :
+    void operator<<(const std::string &s) { m_output << s; }
+
+private:
     std::ostream &m_output;
 };
 //
@@ -76,17 +81,16 @@ private :
 // part of a code - the code will be EOF_CODE, and that is the
 // last one.
 //
-template<>
-class output_code_stream<std::ostream>
+template<> class output_code_stream< std::ostream >
 {
-public :
-    output_code_stream( std::ostream &out, unsigned int max_code )
-        : m_output( out ),
-          m_pending_bits(0),
-          m_pending_output(0),
-          m_code_size(1)
+public:
+    output_code_stream(std::ostream &out, unsigned int max_code)
+        : m_output(out)
+        , m_pending_bits(0)
+        , m_pending_output(0)
+        , m_code_size(1)
     {
-        while ( max_code >>= 1 )
+        while (max_code >>= 1)
             m_code_size++;
     }
     ~output_code_stream()
@@ -94,25 +98,26 @@ public :
         *this << EOF_CODE;
         flush(0);
     }
-    void operator<<( const int &i )
+    void operator<<(const int &i)
     {
         m_pending_output |= i << m_pending_bits;
         m_pending_bits += m_code_size;
-        flush( 8 );
+        flush(8);
     }
-private :
-    void flush( const int val )
+
+private:
+    void flush(const int val)
     {
-        while ( m_pending_bits >= val ) {
-            m_output.put( m_pending_output & 0xff );
+        while (m_pending_bits >= val) {
+            m_output.put(m_pending_output & 0xff);
             m_pending_output >>= 8;
             m_pending_bits -= 8;
         }
     }
-    std::ostream & m_output;
-    int m_code_size;
-    int m_pending_bits;
-    unsigned int m_pending_output;
+    std::ostream &m_output;
+    int           m_code_size;
+    int           m_pending_bits;
+    unsigned int  m_pending_output;
 };
 //
 // Like the output class, the input class has to calculate the code
@@ -129,25 +134,23 @@ private :
 // count is reduced, and the m_available_bits member is
 // reduced accordingly.
 //
-template<>
-class input_code_stream<std::istream>
+template<> class input_code_stream< std::istream >
 {
-public :
-    input_code_stream( std::istream &in, unsigned int max_code )
-        : m_input( in ),
-          m_available_bits(0),
-          m_pending_input(0),
-          m_code_size(1)
+public:
+    input_code_stream(std::istream &in, unsigned int max_code)
+        : m_input(in)
+        , m_available_bits(0)
+        , m_pending_input(0)
+        , m_code_size(1)
     {
-        while ( max_code >>= 1 )
+        while (max_code >>= 1)
             m_code_size++;
     }
-    bool operator>>( unsigned int & i )
+    bool operator>>(unsigned int &i)
     {
-        while ( m_available_bits < m_code_size )
-        {
+        while (m_available_bits < m_code_size) {
             char c;
-            if ( !m_input.get(c) )
+            if (!m_input.get(c))
                 return false;
             m_pending_input |= (c & 0xff) << m_available_bits;
             m_available_bits += 8;
@@ -155,19 +158,19 @@ public :
         i = m_pending_input & ~(~0 << m_code_size);
         m_pending_input >>= m_code_size;
         m_available_bits -= m_code_size;
-        if ( i == EOF_CODE )
+        if (i == EOF_CODE)
             return false;
         else
             return true;
-}
-private :
-    std::istream & m_input;
-    int m_code_size;
-    int m_available_bits;
-    unsigned int m_pending_input;
+    }
+
+private:
+    std::istream &m_input;
+    int           m_code_size;
+    int           m_available_bits;
+    unsigned int  m_pending_input;
 };
 
 }; //namespace lzw
-
 
 #endif //#ifndef LZW_C_DOT_H

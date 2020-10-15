@@ -1,3 +1,5 @@
+// -*- mode: c++; -*-
+
 #ifndef LZW_A_DOT_H
 #define LZW_A_DOT_H
 
@@ -20,19 +22,22 @@ namespace lzw {
 // skips over whitespace, so we don't get an exact copy of
 // the input stream. Using get() works around this problem.
 //
-template<>
-class input_symbol_stream<std::istream> {
-public :
-    input_symbol_stream( std::istream &input )
-        : m_input( input ) {}
-    bool operator>>( char &c )
+template<> class input_symbol_stream< std::istream >
+{
+public:
+    input_symbol_stream(std::istream &input)
+        : m_input(input)
     {
-        if ( !m_input.get( c ) )
+    }
+    bool operator>>(char &c)
+    {
+        if (!m_input.get(c))
             return false;
         else
             return true;
     }
-private :
+
+private:
     std::istream &m_input;
 };
 //
@@ -40,16 +45,16 @@ private :
 // even when the strings contain binary data, so this implementation is
 // as simple as we could hope for.
 //
-template<>
-class output_symbol_stream<std::ostream> {
-public :
-    output_symbol_stream( std::ostream &output )
-        : m_output( output ) {}
-    void operator<<( const std::string &s )
+template<> class output_symbol_stream< std::ostream >
+{
+public:
+    output_symbol_stream(std::ostream &output)
+        : m_output(output)
     {
-        m_output << s;
     }
-private :
+    void operator<<(const std::string &s) { m_output << s; }
+
+private:
     std::ostream &m_output;
 };
 
@@ -71,20 +76,17 @@ private :
 // the I/O routines to deal with EOF issues simplifies the
 // algorithm itself.
 //
-template<>
-class output_code_stream<std::ostream> {
-public :
-    output_code_stream( std::ostream &output, const int )
-        : m_output( output ) {}
-    void operator<<( unsigned int i )
+template<> class output_code_stream< std::ostream >
+{
+public:
+    output_code_stream(std::ostream &output, const int)
+        : m_output(output)
     {
-        m_output << i << '\n';
     }
-    ~output_code_stream()
-    {
-        *this << EOF_CODE;
-    }
-private :
+    void operator<<(unsigned int i) { m_output << i << '\n'; }
+    ~output_code_stream() { *this << EOF_CODE; }
+
+private:
     std::ostream &m_output;
 };
 
@@ -96,24 +98,26 @@ private :
 // false, which allows the decompressor to know
 // when it is time to stop processing.
 //
-template<>
-class input_code_stream<std::istream> {
-public :
-    input_code_stream( std::istream &input, unsigned int )
-        : m_input( input ) {}
-    bool operator>>( unsigned int &i )
+template<> class input_code_stream< std::istream >
+{
+public:
+    input_code_stream(std::istream &input, unsigned int)
+        : m_input(input)
+    {
+    }
+    bool operator>>(unsigned int &i)
     {
         m_input >> i;
-        if ( !m_input || i == EOF_CODE )
+        if (!m_input || i == EOF_CODE)
             return false;
         else
             return true;
     }
-private :
+
+private:
     std::istream &m_input;
 };
 
 }; //namespace lzw
-
 
 #endif //#ifndef LZW_A_DOT_H

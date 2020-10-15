@@ -1,3 +1,5 @@
+// -*- mode: c++; -*-
+
 #ifndef _LZW_STREAMBASE_DOT_H
 #define _LZW_STREAMBASE_DOT_H
 
@@ -8,7 +10,7 @@
 // iostreams classes, the extraction operators can be tested for
 // a boolean result to determine if an EOF has been reached.
 // These classes do not support cascaded reads or writes like
-// the iostreams library does - this simplifies implementation 
+// the iostreams library does - this simplifies implementation
 // somewhat. That means you cannot do this: in >> a >> b >> c;
 //
 // It should be noted that the declarations in all four classes
@@ -43,12 +45,11 @@ namespace lzw {
 // are read.
 //
 
-template<typename T>
-class input_symbol_stream
+template< typename T > class input_symbol_stream
 {
-public :
-    input_symbol_stream( T & );
-    bool operator>>( char &c );
+public:
+    input_symbol_stream(T &);
+    bool operator>>(char &c);
 };
 
 //
@@ -60,18 +61,17 @@ public :
 // insertion operators.
 //
 
-template<typename T>
-class output_symbol_stream
+template< typename T > class output_symbol_stream
 {
-public :
-    output_symbol_stream( T &  );
-    void operator<<( const std::string &s );
+public:
+    output_symbol_stream(T &);
+    void operator<<(const std::string &s);
 };
 
 //
 // The input code stream reads codes, normally unsigned integers,
 // from some type of stream. Note that the extraction
-// method that is reading the codes should return 
+// method that is reading the codes should return
 // false if it encounters EOF_CODE. Removing this responsibility
 // from the decompressor makes the code a bit simpler.
 // The formatting of the integer is entirely up to the
@@ -81,12 +81,11 @@ public :
 
 const unsigned int EOF_CODE = 256;
 
-template<typename T>
-class input_code_stream
+template< typename T > class input_code_stream
 {
-public :
-    input_code_stream( T &, unsigned int );
-    bool operator>>( unsigned int &i );
+public:
+    input_code_stream(T &, unsigned int);
+    bool operator>>(unsigned int &i);
 };
 
 //
@@ -96,12 +95,11 @@ public :
 // for input_code_stream.
 //
 
-template<typename T>
-class output_code_stream 
+template< typename T > class output_code_stream
 {
-public :
-    output_code_stream( T &, unsigned int );
-    void operator<<( const unsigned int i );
+public:
+    output_code_stream(T &, unsigned int);
+    void operator<<(const unsigned int i);
 };
 
 }; //namespace lzw

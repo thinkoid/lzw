@@ -1,3 +1,5 @@
+// -*- mode: c++; -*-
+
 #ifndef LZW_B_DOT_H
 #define LZW_B_DOT_H
 
@@ -18,19 +20,22 @@ namespace lzw {
 // skips over whitespace, so we don't get an exact copy of
 // the input stream. Using get() works around this problem.
 //
-template<>
-class input_symbol_stream<std::istream> {
-public :
-    input_symbol_stream( std::istream &input )
-        : m_input( input ) {}
-    bool operator>>( char &c )
+template<> class input_symbol_stream< std::istream >
+{
+public:
+    input_symbol_stream(std::istream &input)
+        : m_input(input)
     {
-        if ( !m_input.get( c ) )
+    }
+    bool operator>>(char &c)
+    {
+        if (!m_input.get(c))
             return false;
         else
             return true;
     }
-private :
+
+private:
     std::istream &m_input;
 };
 //
@@ -38,16 +43,16 @@ private :
 // even when the strings contain binary data, so this implementation is
 // as simple as we could hope for.
 //
-template<>
-class output_symbol_stream<std::ostream> {
-public :
-    output_symbol_stream( std::ostream &output )
-        : m_output( output ) {}
-    void operator<<( const std::string &s )
+template<> class output_symbol_stream< std::ostream >
+{
+public:
+    output_symbol_stream(std::ostream &output)
+        : m_output(output)
     {
-        m_output << s;
     }
-private :
+    void operator<<(const std::string &s) { m_output << s; }
+
+private:
     std::ostream &m_output;
 };
 
@@ -58,21 +63,21 @@ private :
 // function call, but they raise code portability problems, as we
 // don't always know what order bytes will be written in.
 //
-template<>
-class output_code_stream<std::ostream> {
-public :
-    output_code_stream( std::ostream &output, const int )
-        : m_output( output ) {}
-    void operator<<( unsigned int i )
+template<> class output_code_stream< std::ostream >
+{
+public:
+    output_code_stream(std::ostream &output, const int)
+        : m_output(output)
     {
-        m_output.put( i & 0xff );
-        m_output.put( (i>>8) & 0xff);
     }
-    ~output_code_stream()
+    void operator<<(unsigned int i)
     {
-        *this << EOF_CODE;
+        m_output.put(i & 0xff);
+        m_output.put((i >> 8) & 0xff);
     }
-private :
+    ~output_code_stream() { *this << EOF_CODE; }
+
+private:
     std::ostream &m_output;
 };
 //
@@ -84,30 +89,32 @@ private :
 // It also returns false if there is an error
 // on the input stream.
 //
-template<>
-class input_code_stream<std::istream> {
-public :
-    input_code_stream( std::istream &input, unsigned int )
-        : m_input( input ) {}
-    bool operator>>( unsigned int &i )
+template<> class input_code_stream< std::istream >
+{
+public:
+    input_code_stream(std::istream &input, unsigned int)
+        : m_input(input)
+    {
+    }
+    bool operator>>(unsigned int &i)
     {
         char c;
-        if ( !m_input.get(c) )
+        if (!m_input.get(c))
             return false;
         i = c & 0xff;
-        if ( !m_input.get(c) )
+        if (!m_input.get(c))
             return false;
         i |= (c & 0xff) << 8;
-        if ( i == EOF_CODE )
+        if (i == EOF_CODE)
             return false;
         else
             return true;
     }
-private :
+
+private:
     std::istream &m_input;
 };
 
 }; //namespace lzw
-
 
 #endif //#ifndef LZW_B_DOT_H
