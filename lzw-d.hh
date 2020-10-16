@@ -3,8 +3,12 @@
 #ifndef LZW_D_DOT_H
 #define LZW_D_DOT_H
 
-#include <lzw_streambase.hh>
+#include <cassert>
+#define ASSERT assert
+
 #include <iostream>
+
+#include <lzw_streambase.hh>
 
 //
 // I'm using ifstream and ofstream for my input and output. This means
@@ -141,20 +145,31 @@ public:
         , m_next_bump(512)
         , m_max_code(max_code)
     {
+        char a, b, c;
+
+        (m_input.get(a) && a == char(0x1F) &&
+         m_input.get(b) && b == char(0x9D) &&
+         m_input.get(c) && c == char(0x90)) ||
+            (throw std::runtime_error("invalid header"), false);
     }
 
     bool operator>>(unsigned int &i)
     {
         while (m_available_bits < m_code_size) {
             char c;
+
             if (!m_input.get(c))
                 return false;
+
             m_pending_input |= (c & 0xff) << m_available_bits;
             m_available_bits += 8;
         }
+
         i = m_pending_input & ~(~0U << m_code_size);
+
         m_pending_input >>= m_code_size;
         m_available_bits -= m_code_size;
+
         if (m_current_code < m_max_code) {
             m_current_code++;
             if (m_current_code == m_next_bump) {
@@ -162,10 +177,8 @@ public:
                 m_code_size++;
             }
         }
-        if (i == EOF_CODE)
-            return false;
-        else
-            return true;
+
+        return i != EOF_CODE;
     }
 
 private:
