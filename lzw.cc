@@ -20,23 +20,27 @@ using fmt::print;
 #include <lzw_streambase.hh>
 #include <lzw-d.hh>
 
-namespace lzw {
+#if !defined(BYTE_ORDER)
+#  error undefined endianness
+#endif // !BYTE_ORDER
 
-enum packing_type { LSB, MSB };
+#define LZW_LSB_PACKING LITTLE_ENDIAN
+#define LZW_MSB_PACKING    BIG_ENDIAN
+
+#define LZW_PACKING LZW_LSB_PACKING
+
+namespace lzw {
 
 template< typename InputIterator, typename OutputIterator >
 void compress(InputIterator iter, InputIterator last, OutputIterator out,
-              size_t max_bits = 16, packing_type = LSB)
+              size_t max_bits = 16)
 {
     ASSERT(0 == (max_bits & (max_bits - 1)));
 
-    size_t bits = 9;
+    size_t bits = 9, buf = 0, next = 257, pending = 0;
     ASSERT(max_bits >= bits);
 
-    size_t next = 257, pending = 0;
-    unsigned buf = 0;
-
-    std::unordered_map< std::string, unsigned > table(1UL << 16);
+    std::unordered_map< std::string, size_t > table(1UL << 16);
 
     for (size_t i = 0; i < 256; ++i)
         table[std::string(1, i)] = i;
@@ -62,12 +66,24 @@ void compress(InputIterator iter, InputIterator last, OutputIterator out,
 
             s.pop_back();
 
-            buf |= table.at(s) << pending;
+#if LZW_PACKING == LZW_MSB_PACKING
+            // MSB bit-packing order: TIFF, PDF, etc.
+            buf |= (table.at(s) << ((sizeof buf << 3) - pending));
+#elif LZW_PACKING == LZW_LSB_PACKING
+            // LSB bit-packing order: GIF, etc.
+            buf |= (table.at(s) << pending);
+#endif // LZW_PACKING == ...
+
             pending += bits;
 
             for (; 8 <= pending; pending -= 8) {
+#if LZW_PACKING == LZW_MSB_PACKING
+                *out++ = buf >> ((sizeof buf << 3) - 8);
+                buf <<= 8;
+#elif LZW_PACKING == LZW_LSB_PACKING
                 *out++ = buf & 0xFF;
                 buf >>= 8;
+#endif // LZW_PACKING == LZW_LSB_PACKING
             }
 
             if (bits < max_bits && (1UL << bits) < next)
@@ -78,12 +94,22 @@ void compress(InputIterator iter, InputIterator last, OutputIterator out,
     }
 
     if (!s.empty()) {
-        buf |= table.at(s) << pending;
+#if LZW_PACKING == LZW_MSB_PACKING
+        buf |= (table.at(s) << ((sizeof buf << 3) - pending));
+#elif LZW_PACKING == LZW_LSB_PACKING
+        buf |= (table.at(s) << pending);
+#endif // LZW_PACKING == ...
+
         pending += bits;
 
         for (; pending; pending -= (std::min)(8UL, pending)) {
+#if LZW_PACKING == LZW_MSB_PACKING
+            *out++ = buf >> ((sizeof buf << 3) - 8);
+            buf <<= 8;
+#elif LZW_PACKING == LZW_LSB_PACKING
             *out++ = buf & 0xFF;
             buf >>= 8;
+#endif // LZW_PACKING == LZW_LSB_PACKING
         }
     }
 }
