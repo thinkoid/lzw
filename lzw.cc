@@ -19,11 +19,14 @@ using fmt::print;
 
 #include <lzw_streambase.hh>
 #include <lzw-d.hh>
-#include <lzw.hh>
+
+namespace lzw {
+
+enum packing_type { LSB, MSB };
 
 template< typename InputIterator, typename OutputIterator >
 void compress(InputIterator iter, InputIterator last, OutputIterator out,
-              size_t max_bits = 16)
+              size_t max_bits = 16, packing_type = LSB)
 {
     ASSERT(0 == (max_bits & (max_bits - 1)));
 
@@ -85,10 +88,39 @@ void compress(InputIterator iter, InputIterator last, OutputIterator out,
     }
 }
 
+template< typename InputStream, typename OutputStream >
+void uncompress(InputStream &input, OutputStream &output, size_t max_code = 32767)
+{
+    input_code_stream< InputStream > in(input, max_code);
+    output_symbol_stream< OutputStream > out(output);
+
+    std::unordered_map< unsigned, std::string > table((max_code * 11) / 10);
+
+    for (size_t i = 0; i < 256; ++i)
+        table[i] = std::string(1, i);
+
+    std::string previous_string;
+    unsigned code, next_code = 257;
+
+    while (in >> code) {
+        if (table.find(code) == table.end())
+            table[code] = previous_string + previous_string[0];
+
+        out << table[code];
+
+        if (previous_string.size() && next_code <= max_code)
+            table[next_code++] = previous_string + table[code][0];
+
+        previous_string = table[code];
+    }
+}
+
 template< typename InputIterator, typename OutputIterator >
 void uncompress(InputIterator, InputIterator, OutputIterator)
 {
 }
+
+} // namespace lzw
 
 static void
 press(std::istream &in, std::ostream &out, size_t max_code,
@@ -98,10 +130,13 @@ press(std::istream &in, std::ostream &out, size_t max_code,
     using output_iterator = std::ostream_iterator< char >;
 
     if (uncompress_mode) {
-        lzw::decompress(in, out, max_code);
-        // uncompress(iterator(in), iterator(), output_iterator(out));
+#if 1
+        lzw::uncompress(in, out, max_code);
+#else
+        lzw::uncompress(iterator(in), iterator(), output_iterator(out));
+#endif // 0
     } else {
-        compress(iterator(in), iterator(), output_iterator(out));
+        lzw::compress(iterator(in), iterator(), output_iterator(out));
     }
 }
 
