@@ -19,11 +19,33 @@ cd "${TMPDIR}"
 
 info bash -o - | shuf -n50 >file.txt
 
-echo "## Test (de)compression ..."
+compress -c file.txt >file.txt.Z.2
+[ -e file.txt.Z.2 ]
+
+echo "## Test (de)compression"
 compress_ file.txt file.txt.Z
 [ -e file.txt.Z ]
 
-compress -c file.txt >file.txt.Z.2
+diff file.txt.Z file.txt.Z.2
+
+uncompress_ file.txt.Z file.txt.2
+[ -e file.txt.2 ]
+diff file.txt file.txt.2
+
+echo "## Test (de)compression file to stdout"
+compress_ file.txt >file.txt.Z
+[ -e file.txt.Z ]
+
+diff file.txt.Z file.txt.Z.2
+
+uncompress_ file.txt.Z file.txt.2
+[ -e file.txt.2 ]
+diff file.txt file.txt.2
+
+echo "## Test (de)compression stdin to stdout"
+compress_ <file.txt >file.txt.Z
+[ -e file.txt.Z ]
+
 diff file.txt.Z file.txt.Z.2
 
 uncompress_ file.txt.Z file.txt.2

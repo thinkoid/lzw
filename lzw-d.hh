@@ -10,6 +10,9 @@
 
 #include <lzw_streambase.hh>
 
+#include <fmt/format.h>
+using fmt::print;
+
 //
 // I'm using ifstream and ofstream for my input and output. This means
 // I need to create four specialized routines that read and write
