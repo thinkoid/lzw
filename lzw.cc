@@ -60,8 +60,8 @@ struct input_buffer_t
 
 #if LZW_PACKING == LZW_MSB_PACKING
         // MSB bit-packing order: TIFF, PDF, etc.
-        code = buf >> (pending - bits);
-        buf &= ;
+        code = buf >> ((sizeof buf << 3) - bits);
+        buf <<= bits;
 #elif LZW_PACKING == LZW_LSB_PACKING
         // LSB bit-packing order: GIF, etc.
         code = buf & ((1UL << bits) - 1);
@@ -76,7 +76,7 @@ struct input_buffer_t
 private:
     void do_get(size_t bits) {
         for (; iter != last && pending < bits; ++iter, pending += 8) {
-            const size_t c = (unsigned char)*iter;
+            const size_t c = static_cast< unsigned char >(*iter);
 
 #if LZW_PACKING == LZW_MSB_PACKING
             // MSB bit-packing order: TIFF, PDF, etc.
@@ -97,7 +97,7 @@ template< typename OutputIterator >
 struct output_buffer_t
 {
     explicit output_buffer_t(OutputIterator iter)
-        : iter(iter), buf(), pending()
+        : out(iter), buf(), pending()
     { }
 
     void put(size_t value, size_t bits) {
@@ -121,17 +121,17 @@ private:
     void do_put(size_t threshold) {
         for (; pending > threshold; pending -= (std::min)(8UL, pending)) {
 #if LZW_PACKING == LZW_MSB_PACKING
-            *iter++ = buf >> ((sizeof buf << 3) - 8);
+            *out++ = buf >> ((sizeof buf << 3) - 8);
             buf <<= 8;
 #elif LZW_PACKING == LZW_LSB_PACKING
-            *iter++ = buf & 0xFF;
+            *out++ = buf & 0xFF;
             buf >>= 8;
 #endif // LZW_PACKING == LZW_LSB_PACKING
         }
     }
 
 private:
-    OutputIterator iter;
+    OutputIterator out;
     size_t buf, pending;
 };
 
@@ -153,8 +153,8 @@ void compress(InputIterator iter, InputIterator last, OutputIterator out)
     //
     // Output header
     //
-    *out++ = 0x1F;
-    *out++ = 0x9D;
+    *out++ = 0x1F; // magic
+    *out++ = 0x9D; // more magic
     *out++ = 0x80 | LZW_MAX_BITS;
 
     std::string s;
@@ -184,53 +184,58 @@ void compress(InputIterator iter, InputIterator last, OutputIterator out)
         buf.put(table.at(s), bits);
 }
 
-template< typename InputStream, typename OutputStream >
-void uncompress(InputStream &input, OutputStream &output, size_t max_code = 32767)
+template< typename InputIterator, typename OutputIterator >
+void uncompress(InputIterator iter, InputIterator last, OutputIterator out)
 {
-    input_code_stream< InputStream > in(input, max_code);
-    output_symbol_stream< OutputStream > out(output);
+    size_t next = LZW_FIRST_CODE, bits = LZW_MIN_BITS, max_bits = 0;
 
-    std::unordered_map< unsigned, std::string > table((max_code * 11) / 10);
+    std::map< size_t, std::string > table;
 
     for (size_t i = 0; i < 256; ++i)
-        table[i] = std::string(1, i);
+        table[i] = std::string(1UL, i);
 
-    std::string previous_string;
-    unsigned code, next_code = 257;
+    {
+        (iter != last && *iter++ == char(0x1F) &&
+         iter != last && *iter++ == char(0x9D) &&
+         iter != last) ||
+            (throw std::runtime_error("invalid header"), false);
 
-    while (in >> code) {
-        if (table.find(code) == table.end())
-            table[code] = previous_string + previous_string[0];
+        max_bits = static_cast< unsigned char >(*iter++) & ~0x80;
 
-        out << table[code];
-
-        if (previous_string.size() && next_code <= max_code)
-            table[next_code++] = previous_string + table[code][0];
-
-        previous_string = table[code];
+        ASSERT(0 == (max_bits & (max_bits - 1)));
+        ASSERT(bits <= max_bits);
     }
-}
 
-template< typename InputIterator, typename OutputIterator >
-void uncompress(InputIterator, InputIterator, OutputIterator)
-{
+    std::string prev;
+    detail::input_buffer_t< InputIterator > buf(iter, last);
+
+    for (size_t code; LZW_EOF_CODE != (code = buf.get(bits)); ) {
+        if (table.find(code) == table.end())
+            table[code] = prev + prev[0];
+
+        const auto &s = table[code];
+        std::copy(s.begin(), s.end(), out);
+
+        if (bits < max_bits && (1UL << bits) - 1 <= next)
+            ++bits;
+
+        if (!prev.empty() && next < (1UL << max_bits))
+            table[next++] = prev + table[code][0];
+
+        prev = table[code];
+    }
 }
 
 } // namespace lzw
 
 static void
-press(std::istream &in, std::ostream &out, size_t max_code,
-      bool uncompress_mode = false)
+press(std::istream &in, std::ostream &out, bool uncompress_mode = false)
 {
     using        iterator = std::istream_iterator< char >;
     using output_iterator = std::ostream_iterator< char >;
 
     if (uncompress_mode) {
-#if 1
-        lzw::uncompress(in, out, max_code);
-#else
         lzw::uncompress(iterator(in), iterator(), output_iterator(out));
-#endif // 0
     } else {
         lzw::compress(iterator(in), iterator(), output_iterator(out));
     }
@@ -238,15 +243,10 @@ press(std::istream &in, std::ostream &out, size_t max_code,
 
 int main(int argc, char **argv)
 {
-    long maxcode = 32767;
     bool uncompress_mode = false;
 
-    for (int opt; -1 != (opt = getopt(argc, argv, "m:d")); ) {
+    for (int opt; -1 != (opt = getopt(argc, argv, "d")); ) {
         switch (opt) {
-        case 'm':
-            maxcode = atol(optarg);
-            break;
-
         case 'd':
             uncompress_mode = true;
             break;
@@ -267,7 +267,7 @@ int main(int argc, char **argv)
 
         ofstream out(argv[optind + 1], ios::out | ios::binary);
 
-        press(in, out, maxcode, uncompress_mode);
+        press(in, out, uncompress_mode);
     }
         break;
 
@@ -282,7 +282,7 @@ int main(int argc, char **argv)
         ostream out(&outbuf);
         out.unsetf(ios::skipws);
 
-        press(in, out, maxcode, uncompress_mode);
+        press(in, out, uncompress_mode);
     }
         break;
 
@@ -299,7 +299,7 @@ int main(int argc, char **argv)
         ostream out(&outbuf);
         out.unsetf(ios::skipws);
 
-        press(in, out, maxcode, uncompress_mode);
+        press(in, out, uncompress_mode);
 
         inbuf.close();
         outbuf.close();
