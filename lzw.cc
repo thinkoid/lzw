@@ -9,6 +9,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <type_traits>
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -34,20 +35,72 @@ using fmt::print;
 #define LZW_MAX_BITS 16
 
 #define LZW_CLEAR_TABLE_CODE 256
+#define LZW_EOF_CODE         256
+
 #define LZW_EOD_CODE         257
 #define LZW_FIRST_CODE       257
 
 namespace lzw {
 namespace detail {
 
-template< typename OutputIterator >
-struct buffer_t
+template< typename InputIterator >
+struct input_buffer_t
 {
-    explicit buffer_t(OutputIterator iter)
+    explicit input_buffer_t(InputIterator iter, InputIterator last)
+        : iter(iter), last(last), buf(), pending()
+    { }
+
+    size_t get(size_t bits) {
+        do_get(bits);
+
+        if (pending < bits)
+            return LZW_EOF_CODE;
+
+        size_t code;
+
+#if LZW_PACKING == LZW_MSB_PACKING
+        // MSB bit-packing order: TIFF, PDF, etc.
+        code = buf >> (pending - bits);
+        buf &= ;
+#elif LZW_PACKING == LZW_LSB_PACKING
+        // LSB bit-packing order: GIF, etc.
+        code = buf & ((1UL << bits) - 1);
+        buf >>= bits;
+#endif // LZW_PACKING == ...
+
+        pending -= bits;
+
+        return code;
+    }
+
+private:
+    void do_get(size_t bits) {
+        for (; iter != last && pending < bits; ++iter, pending += 8) {
+            const size_t c = (unsigned char)*iter;
+
+#if LZW_PACKING == LZW_MSB_PACKING
+            // MSB bit-packing order: TIFF, PDF, etc.
+            buf |= c << ((sizeof buf << 3) - pending - 8);
+#elif LZW_PACKING == LZW_LSB_PACKING
+            // LSB bit-packing order: GIF, etc.
+            buf |= c << pending;
+#endif // LZW_PACKING == ...
+        }
+    }
+
+private:
+    InputIterator iter, last;
+    size_t buf, pending;
+};
+
+template< typename OutputIterator >
+struct output_buffer_t
+{
+    explicit output_buffer_t(OutputIterator iter)
         : iter(iter), buf(), pending()
     { }
 
-    void write(size_t value, size_t bits) {
+    void put(size_t value, size_t bits) {
 #if LZW_PACKING == LZW_MSB_PACKING
         // MSB bit-packing order: TIFF, PDF, etc.
         buf |= (value << ((sizeof buf << 3) - pending));
@@ -57,15 +110,15 @@ struct buffer_t
 #endif // LZW_PACKING == ...
 
         pending += bits;
-        do_write(7);
+        do_put(7);
     }
 
-    ~buffer_t() {
-        do_write(0);
+    ~output_buffer_t() {
+        do_put(0);
     }
 
 private:
-    void do_write(size_t threshold) {
+    void do_put(size_t threshold) {
         for (; pending > threshold; pending -= (std::min)(8UL, pending)) {
 #if LZW_PACKING == LZW_MSB_PACKING
             *iter++ = buf >> ((sizeof buf << 3) - 8);
@@ -105,7 +158,7 @@ void compress(InputIterator iter, InputIterator last, OutputIterator out)
     *out++ = 0x80 | LZW_MAX_BITS;
 
     std::string s;
-    detail::buffer_t< OutputIterator > buf(out);
+    detail::output_buffer_t< OutputIterator > buf(out);
 
     for (; iter != last; ++iter) {
         s.append(1UL, *iter);
@@ -118,7 +171,7 @@ void compress(InputIterator iter, InputIterator last, OutputIterator out)
                 table[s] = next++;
 
             s.pop_back();
-            buf.write(table.at(s), bits);
+            buf.put(table.at(s), bits);
 
             if (bits < LZW_MAX_BITS && (1UL << bits) < next)
                 ++bits;
@@ -128,7 +181,7 @@ void compress(InputIterator iter, InputIterator last, OutputIterator out)
     }
 
     if (!s.empty())
-        buf.write(table.at(s), bits);
+        buf.put(table.at(s), bits);
 }
 
 template< typename InputStream, typename OutputStream >
