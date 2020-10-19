@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <memory>
 
 #include <filesystem>
@@ -91,7 +92,7 @@ void compress(InputIterator iter, InputIterator last, OutputIterator out)
     size_t bits = LZW_MIN_BITS, next = LZW_FIRST_CODE;
     ASSERT(LZW_MAX_BITS >= LZW_MIN_BITS);
 
-    std::unordered_map< std::string, size_t > table(1UL << 16);
+    std::map< std::string, size_t > table;
 
     for (size_t i = 0; i < 256; ++i)
         table[std::string(1, i)] = i;
