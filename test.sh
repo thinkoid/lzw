@@ -26,30 +26,30 @@ echo "## Test (de)compression"
 compress_ file.txt file.txt.Z
 [ -e file.txt.Z ]
 
-diff file.txt.Z file.txt.Z.2
+diff file.txt.Z file.txt.Z.2 &>/dev/null
 
 uncompress_ file.txt.Z file.txt.2
 [ -e file.txt.2 ]
-diff file.txt file.txt.2
+diff file.txt file.txt.2 &>/dev/null
 
 echo "## Test (de)compression file to stdout"
 compress_ file.txt >file.txt.Z
 [ -e file.txt.Z ]
 
-diff file.txt.Z file.txt.Z.2
+diff file.txt.Z file.txt.Z.2 &>/dev/null
 
 uncompress_ file.txt.Z file.txt.2
 [ -e file.txt.2 ]
-diff file.txt file.txt.2
+diff file.txt file.txt.2 &>/dev/null
 
 echo "## Test (de)compression stdin to stdout"
 compress_ <file.txt >file.txt.Z
 [ -e file.txt.Z ]
 
-diff file.txt.Z file.txt.Z.2
+diff file.txt.Z file.txt.Z.2 &>/dev/null
 
 uncompress_ file.txt.Z file.txt.2
 [ -e file.txt.2 ]
-diff file.txt file.txt.2
+diff file.txt file.txt.2 &>/dev/null
 
 echo "## OK."
