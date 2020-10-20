@@ -164,9 +164,6 @@ void compress(InputIterator iter, InputIterator last, OutputIterator out)
         s.append(1UL, *iter);
 
         if (table.end() == table.find(s)) {
-            //
-            // Add the new string to the table:
-            //
             if ((1UL << LZW_MAX_BITS) > next)
                 table[s] = next++;
 
@@ -202,16 +199,18 @@ void uncompress(InputIterator iter, InputIterator last, OutputIterator out)
 
         max_bits = static_cast< unsigned char >(*iter++) & ~0x80;
 
-        ASSERT(0 == (max_bits & (max_bits - 1)));
-        ASSERT(bits <= max_bits);
+        if ((max_bits & (max_bits - 1)) || bits > max_bits)
+            throw std::runtime_error("invalid max bits indicator");
     }
 
     std::string prev;
     detail::input_buffer_t< InputIterator > buf(iter, last);
 
     for (size_t code; LZW_EOF_CODE != (code = buf.get(bits)); ) {
-        if (table.find(code) == table.end())
+        if (table.find(code) == table.end()) {
+            ASSERT(!prev.empty());
             table[code] = prev + prev[0];
+        }
 
         const auto &s = table[code];
         std::copy(s.begin(), s.end(), out);
@@ -219,7 +218,7 @@ void uncompress(InputIterator iter, InputIterator last, OutputIterator out)
         if (bits < max_bits && (1UL << bits) - 1 <= next)
             ++bits;
 
-        if (!prev.empty() && next < (1UL << max_bits))
+        if (!prev.empty() && (1UL << max_bits) > next)
             table[next++] = prev + table[code][0];
 
         prev = table[code];
