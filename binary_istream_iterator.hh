@@ -7,17 +7,18 @@ namespace lzw {
 
 struct binary_istream_iterator_t
 {
+private:
     using stream_type = std::basic_istream< char, std::char_traits< char > >;
 
+public:
     using iterator_category = std::input_iterator_tag;
 
-    using char_type = char;
-    using value_type = char_type;
-
-    // using difference_type = iterator_type::difference_type;
+    using value_type = char;
 
     using pointer = char *;
     using const_pointer = const char *;
+
+    using difference_type = std::ptrdiff_t;
 
     using reference = char &;
     using const_reference = const char &;
