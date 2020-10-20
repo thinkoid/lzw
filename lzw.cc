@@ -1,6 +1,7 @@
 // -*- mode: c++; -*-
 
 #include <defs.hh>
+#include <binary_istream_iterator.hh>
 
 #include <unistd.h>
 
@@ -15,8 +16,6 @@
 
 #include <filesystem>
 namespace fs = std::filesystem;
-
-#include <ext/stdio_filebuf.h>
 
 #include <fmt/format.h>
 using fmt::print;
@@ -160,7 +159,7 @@ void compress(InputIterator iter, InputIterator last, OutputIterator out)
     detail::output_buffer_t< OutputIterator > buf(out);
 
     for (; iter != last; ++iter) {
-        s.append(1UL, *iter);
+        s += *iter;
 
         if (table.end() == table.find(s)) {
             if ((1UL << LZW_MAX_BITS) > next)
@@ -229,7 +228,7 @@ void uncompress(InputIterator iter, InputIterator last, OutputIterator out)
 static void
 press(std::istream &in, std::ostream &out, bool uncompress_mode = false)
 {
-    using        iterator = std::istream_iterator< char >;
+    using        iterator = lzw::binary_istream_iterator_t;
     using output_iterator = std::ostream_iterator< char >;
 
     if (uncompress_mode) {
@@ -275,32 +274,13 @@ int main(int argc, char **argv)
         ifstream in(argv[optind], ios_base::in  | ios_base::binary);
         in.unsetf(ios::skipws);
 
-        __gnu_cxx::stdio_filebuf< char > outbuf(1, ios::out | ios::binary);
-
-        ostream out(&outbuf);
-        out.unsetf(ios::skipws);
-
-        press(in, out, uncompress_mode);
+        press(in, cout, uncompress_mode);
     }
         break;
 
     case 0: {
         using namespace std;
-
-        __gnu_cxx::stdio_filebuf< char > inbuf(0, ios::in | ios::binary);
-
-        istream in(&inbuf);
-        in.unsetf(ios::skipws);
-
-        __gnu_cxx::stdio_filebuf< char > outbuf(1, ios::out | ios::binary);
-
-        ostream out(&outbuf);
-        out.unsetf(ios::skipws);
-
-        press(in, out, uncompress_mode);
-
-        inbuf.close();
-        outbuf.close();
+        press(cin, cout, uncompress_mode);
     }
         break;
 
