@@ -1,4 +1,6 @@
 // -*- mode: c++; -*-
+// Copyright (c) 2011 Mark Nelson
+// Copyright (c) 2020- Thinkoid, LLC
 
 #include <defs.hh>
 #include <binary_istream_iterator.hh>

@@ -1,4 +1,5 @@
 // -*- mode: c++; -*-
+// Copyright (c) 2020- Thinkoid, LLC
 
 #include <iostream>
 #include <iterator>

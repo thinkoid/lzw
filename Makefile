@@ -1,4 +1,5 @@
 # -*- mode: makefile; -*-
+# Copyright (c) 2020- Thinkoid, LLC
 
 OSNAME := $(shell uname)
 
@@ -22,7 +23,7 @@ DEPENDFLAGS = -M
 SRCS := $(wildcard *.cc)
 OBJS := $(patsubst %.cc,%.o,$(SRCS))
 
-TARGETS = lzw t
+TARGETS = lzw
 
 all: $(TARGETS)
 
