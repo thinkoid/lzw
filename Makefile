@@ -22,9 +22,9 @@ DEPENDFLAGS = -M
 SRCS := $(wildcard *.cc)
 OBJS := $(patsubst %.cc,%.o,$(SRCS))
 
-TARGET = lzw
+TARGETS = lzw t
 
-all: $(TARGET)
+all: $(TARGETS)
 
 DEPS = $(patsubst %.o,$(DEPENDDIR)/%.d,$(OBJS))
 -include $(DEPS)
@@ -40,14 +40,14 @@ $(DEPENDDIR):
 %.o: %.cc
 	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $<
 
-lzw: $(OBJS)
+%: %.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 clean:
-	@rm -rf $(TARGET) $(OBJS)
+	@rm -rf $(TARGETS) $(OBJS)
 
 realclean:
-	@rm -rf $(TARGET) $(OBJS) $(DEPENDDIR)
+	@rm -rf $(TARGETS) $(OBJS) $(DEPENDDIR)
 
 install: lzw
 	install $< $(INSTALLDIR)

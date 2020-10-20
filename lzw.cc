@@ -1,5 +1,7 @@
 // -*- mode: c++; -*-
 
+#include <defs.hh>
+
 #include <unistd.h>
 
 #include <cstring>
@@ -18,9 +20,6 @@ namespace fs = std::filesystem;
 
 #include <fmt/format.h>
 using fmt::print;
-
-#include <lzw_streambase.hh>
-#include <lzw-d.hh>
 
 #if !defined(BYTE_ORDER)
 #  error undefined endianness
