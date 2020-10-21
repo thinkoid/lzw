@@ -3,234 +3,91 @@
 // Copyright (c) 2020- Thinkoid, LLC
 
 #include <defs.hh>
-#include <binary_istream_iterator.hh>
+#include <lzw.hh>
 
 #include <unistd.h>
-
-#include <cstring>
-
-#include <iostream>
-#include <fstream>
-#include <limits>
-#include <map>
-#include <memory>
-#include <type_traits>
-
-#include <filesystem>
-namespace fs = std::filesystem;
 
 #include <fmt/format.h>
 using fmt::print;
 
-#if !defined(BYTE_ORDER)
-#  error undefined endianness
-#endif // !BYTE_ORDER
+#include <fstream>
+#include <iterator>
 
-#define LZW_LSB_PACKING LITTLE_ENDIAN
-#define LZW_MSB_PACKING    BIG_ENDIAN
-
-#define LZW_PACKING LZW_LSB_PACKING
-
-#define LZW_MIN_BITS  9
-#define LZW_MAX_BITS 16
-
-#define LZW_CLEAR_TABLE_CODE 256
-#define LZW_EOF_CODE         256
-
-#define LZW_EOD_CODE         257
-#define LZW_FIRST_CODE       257
-
-namespace lzw {
-namespace detail {
-
-template< typename InputIterator >
-struct input_buffer_t
+struct binary_istream_iterator_t
 {
-    explicit input_buffer_t(InputIterator iter, InputIterator last)
-        : iter(iter), last(last), buf(), pending()
-    { }
+private:
+    using stream_type = std::basic_istream< char, std::char_traits< char > >;
 
-    size_t get(size_t bits) {
-        do_get(bits);
+public:
+    using iterator_category = std::input_iterator_tag;
 
-        if (pending < bits)
-            return LZW_EOF_CODE;
+    using value_type = char;
 
-        size_t code;
+    using pointer = char *;
+    using const_pointer = const char *;
 
-#if LZW_PACKING == LZW_MSB_PACKING
-        // MSB bit-packing order: TIFF, PDF, etc.
-        code = buf >> ((sizeof buf << 3) - bits);
-        buf <<= bits;
-#elif LZW_PACKING == LZW_LSB_PACKING
-        // LSB bit-packing order: GIF, etc.
-        code = buf & ((1UL << bits) - 1);
-        buf >>= bits;
-#endif // LZW_PACKING == ...
+    using difference_type = std::ptrdiff_t;
 
-        pending -= bits;
+    using reference = char &;
+    using const_reference = const char &;
 
-        return code;
+public:
+    binary_istream_iterator_t() : stream(0) { }
+
+    binary_istream_iterator_t(stream_type &s) : stream(&s) {
+        ++*this;
     }
 
-private:
-    void do_get(size_t bits) {
-        for (; iter != last && pending < bits; ++iter, pending += 8) {
-            const size_t c = static_cast< unsigned char >(*iter);
-
-#if LZW_PACKING == LZW_MSB_PACKING
-            // MSB bit-packing order: TIFF, PDF, etc.
-            buf |= c << ((sizeof buf << 3) - pending - 8);
-#elif LZW_PACKING == LZW_LSB_PACKING
-            // LSB bit-packing order: GIF, etc.
-            buf |= c << pending;
-#endif // LZW_PACKING == ...
-        }
+    const_reference operator*() const {
+        return value;
     }
 
+    const_pointer operator->() const {
+        return &**this;
+    }
+
+    binary_istream_iterator_t &operator++() {
+        if (stream && stream->get(value).fail())
+            stream = 0;
+
+        return *this;
+
+    }
+
+    binary_istream_iterator_t operator++(int) {
+        auto tmp = *this;
+        return ++*this, tmp;
+    }
+
+    friend bool
+    operator==(const binary_istream_iterator_t&,
+               const binary_istream_iterator_t&);
+
 private:
-    InputIterator iter, last;
-    size_t buf, pending;
+    stream_type *stream;
+    value_type value;    // last extracted value
 };
 
-template< typename OutputIterator >
-struct output_buffer_t
+inline bool
+operator==(const binary_istream_iterator_t &lhs,
+           const binary_istream_iterator_t &rhs)
 {
-    explicit output_buffer_t(OutputIterator iter)
-        : out(iter), buf(), pending()
-    { }
-
-    void put(size_t value, size_t bits) {
-#if LZW_PACKING == LZW_MSB_PACKING
-        // MSB bit-packing order: TIFF, PDF, etc.
-        buf |= (value << ((sizeof buf << 3) - pending));
-#elif LZW_PACKING == LZW_LSB_PACKING
-        // LSB bit-packing order: GIF, etc.
-        buf |= (value << pending);
-#endif // LZW_PACKING == ...
-
-        pending += bits;
-        do_put(7);
-    }
-
-    ~output_buffer_t() {
-        do_put(0);
-    }
-
-private:
-    void do_put(size_t threshold) {
-        for (; pending > threshold; pending -= (std::min)(8UL, pending)) {
-#if LZW_PACKING == LZW_MSB_PACKING
-            *out++ = buf >> ((sizeof buf << 3) - 8);
-            buf <<= 8;
-#elif LZW_PACKING == LZW_LSB_PACKING
-            *out++ = buf & 0xFF;
-            buf >>= 8;
-#endif // LZW_PACKING == LZW_LSB_PACKING
-        }
-    }
-
-private:
-    OutputIterator out;
-    size_t buf, pending;
-};
-
-} // namespace detail
-
-template< typename InputIterator, typename OutputIterator >
-void compress(InputIterator iter, InputIterator last, OutputIterator out)
-{
-    ASSERT(0 == (LZW_MAX_BITS & (LZW_MAX_BITS - 1)));
-
-    size_t bits = LZW_MIN_BITS, next = LZW_FIRST_CODE;
-    ASSERT(LZW_MAX_BITS >= LZW_MIN_BITS);
-
-    std::map< std::string, size_t > table;
-
-    for (size_t i = 0; i < 256; ++i)
-        table[std::string(1, i)] = i;
-
-    //
-    // Output header
-    //
-    *out++ = 0x1F; // magic
-    *out++ = 0x9D; // more magic
-    *out++ = 0x80 | LZW_MAX_BITS;
-
-    std::string s;
-    detail::output_buffer_t< OutputIterator > buf(out);
-
-    for (; iter != last; ++iter) {
-        s += *iter;
-
-        if (table.end() == table.find(s)) {
-            if ((1UL << LZW_MAX_BITS) > next)
-                table[s] = next++;
-
-            s.pop_back();
-            buf.put(table.at(s), bits);
-
-            if (bits < LZW_MAX_BITS && (1UL << bits) < next)
-                ++bits;
-
-            s = *iter;
-        }
-    }
-
-    if (!s.empty())
-        buf.put(table.at(s), bits);
+    return lhs.stream == rhs.stream;
 }
 
-template< typename InputIterator, typename OutputIterator >
-void uncompress(InputIterator iter, InputIterator last, OutputIterator out)
+inline bool
+operator!=(const binary_istream_iterator_t &lhs,
+           const binary_istream_iterator_t &rhs)
 {
-    size_t next = LZW_FIRST_CODE, bits = LZW_MIN_BITS, max_bits = 0;
-
-    std::map< size_t, std::string > table;
-
-    for (size_t i = 0; i < 256; ++i)
-        table[i] = std::string(1UL, i);
-
-    {
-        (iter != last && *iter++ == char(0x1F) &&
-         iter != last && *iter++ == char(0x9D) &&
-         iter != last) ||
-            (throw std::runtime_error("invalid header"), false);
-
-        max_bits = static_cast< unsigned char >(*iter++) & ~0x80;
-
-        if ((max_bits & (max_bits - 1)) || bits > max_bits)
-            throw std::runtime_error("invalid max bits indicator");
-    }
-
-    std::string prev;
-    detail::input_buffer_t< InputIterator > buf(iter, last);
-
-    for (size_t code; LZW_EOF_CODE != (code = buf.get(bits)); ) {
-        if (table.find(code) == table.end()) {
-            ASSERT(!prev.empty());
-            table[code] = prev + prev[0];
-        }
-
-        const auto &s = table[code];
-        std::copy(s.begin(), s.end(), out);
-
-        if (bits < max_bits && (1UL << bits) - 1 <= next)
-            ++bits;
-
-        if (!prev.empty() && (1UL << max_bits) > next)
-            table[next++] = prev + table[code][0];
-
-        prev = table[code];
-    }
+    return !(lhs == rhs);
 }
 
-} // namespace lzw
+////////////////////////////////////////////////////////////////////////
 
 static void
 press(std::istream &in, std::ostream &out, bool uncompress_mode = false)
 {
-    using        iterator = lzw::binary_istream_iterator_t;
+    using iterator = binary_istream_iterator_t;
     using output_iterator = std::ostream_iterator< char >;
 
     if (uncompress_mode) {
