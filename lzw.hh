@@ -84,7 +84,7 @@ struct output_buffer_t
     void put(size_t value, size_t bits) {
 #if defined(LZW_MSB_PACKING)
         // MSB bit-packing order: TIFF, PDF, etc.
-        buf |= (value << ((sizeof buf << 3) - pending));
+        buf |= (value << ((sizeof buf << 3) - pending - bits));
 #elif defined(LZW_LSB_PACKING)
         // LSB bit-packing order: GIF, etc.
         buf |= (value << pending);
@@ -121,8 +121,6 @@ private:
 template< typename InputIterator, typename OutputIterator >
 void compress(InputIterator iter, InputIterator last, OutputIterator out)
 {
-    ASSERT(0 == (LZW_MAX_BITS & (LZW_MAX_BITS - 1)));
-
     size_t bits = LZW_MIN_BITS, next = LZW_FIRST_CODE;
     ASSERT(LZW_MAX_BITS >= LZW_MIN_BITS);
 
@@ -180,7 +178,7 @@ void uncompress(InputIterator iter, InputIterator last, OutputIterator out)
 
         max_bits = static_cast< unsigned char >(*iter++) & ~0x80;
 
-        if ((max_bits & (max_bits - 1)) || bits > max_bits)
+        if (bits > max_bits)
             throw std::runtime_error("invalid max bits indicator");
     }
 
