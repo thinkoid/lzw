@@ -15,10 +15,7 @@
 #define LZW_MIN_BITS  9
 #define LZW_MAX_BITS 16
 
-#define LZW_CLEAR_TABLE_CODE 256
-#define LZW_EOF_CODE         256
-
-#define LZW_EOD_CODE         257
+#define LZW_EOD_CODE         256
 #define LZW_FIRST_CODE       257
 
 namespace lzw {
@@ -35,7 +32,7 @@ struct input_buffer_t
         do_get(bits);
 
         if (pending < bits)
-            return LZW_EOF_CODE;
+            return LZW_EOD_CODE;
 
         size_t code;
 
@@ -185,7 +182,7 @@ void uncompress(InputIterator iter, InputIterator last, OutputIterator out)
     std::string prev;
     detail::input_buffer_t< InputIterator > buf(iter, last);
 
-    for (size_t code; LZW_EOF_CODE != (code = buf.get(bits)); ) {
+    for (size_t code; LZW_EOD_CODE != (code = buf.get(bits)); ) {
         if (table.find(code) == table.end()) {
             ASSERT(!prev.empty());
             table[code] = prev + prev[0];
